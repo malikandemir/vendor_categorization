@@ -1,0 +1,121 @@
+name: Python Flask CI/CD
+
+on:
+  push:
+    branches:
+      - main  # adjust if you use a different branch
+
+jobs:
+  python-tests:
+    name: Run Python Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'  # Match your Python version
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f vendor_categorization/requirements.txt ]; then
+            pip install -r vendor_categorization/requirements.txt
+          fi
+
+      - name: Setup environment variables
+        run: |
+          cp vendor_categorization/.env.example vendor_categorization/.env
+          # Note: In a real workflow, you would set the API keys from GitHub secrets
+
+      - name: Run tests
+        run: |
+          # Add your test command here, for example:
+          # pytest
+
+  deploy:
+    name: Deploy to Personal Server
+    needs: python-tests
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Debug SSH Connection
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            echo "SSH connection successful"
+            pwd
+            whoami
+            ls -la
+            
+      - name: Deploy via SSH
+        if: success()
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            # Check if directory exists
+            if [ -d "/home/malikan2/vendor_categorization" ]; then
+              cd /home/malikan2/vendor_categorization
+              git pull origin main
+              
+              # Create virtual environment if it doesn't exist
+              if [ ! -d "venv" ]; then
+                python3 -m venv venv
+              fi
+              
+              # Activate virtual environment and install dependencies
+              source venv/bin/activate
+              pip install -r vendor_categorization/requirements.txt
+              
+              # Copy environment file if it doesn't exist
+              if [ ! -f "vendor_categorization/.env" ]; then
+                cp vendor_categorization/.env.example vendor_categorization/.env
+                # Note: In production, you would need to set the actual API keys
+              fi
+              
+              # Restart the application (assuming you're using systemd)
+              # sudo systemctl restart your-flask-app.service
+              
+              echo "Deployment completed successfully"
+            else
+              echo "Directory /home/malikan2/vendor_categorization does not exist, creating it..."
+              mkdir -p /home/malikan2/vendor_categorization
+              cd /home/malikan2
+              git clone https://github.com/malikandemir/vendor_categorization.git vendor_categorization
+              cd vendor_categorization
+              
+              # Create virtual environment
+              python -m venv venv
+              source venv/bin/activate
+              pip install -r vendor_categorization/requirements.txt
+              
+              # Copy environment file
+              cp vendor_categorization/.env.example vendor_categorization/.env
+              # Note: In production, you would need to set the actual API keys
+              
+              # Set up systemd service (if applicable)
+              # sudo cp your-flask-app.service /etc/systemd/system/
+              # sudo systemctl enable your-flask-app.service
+              # sudo systemctl start your-flask-app.service
+              
+              echo "Initial setup completed successfully"
+            fi
+
+            # Run the app
+            
