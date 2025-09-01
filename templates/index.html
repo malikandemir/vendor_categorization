@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vendor Categorization Tool</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            padding-top: 2rem;
+            padding-bottom: 2rem;
+        }
+        .header {
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #e5e5e5;
+            margin-bottom: 2rem;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .spinner-border {
+            width: 3rem;
+            height: 3rem;
+        }
+        #results-container, #history-container {
+            display: none;
+        }
+        .tab-content {
+            padding: 20px;
+            border: 1px solid #dee2e6;
+            border-top: none;
+            border-radius: 0 0 0.25rem 0.25rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="container mt-5">
+        <!-- Custom Alert Modal -->
+        <div class="modal fade" id="alertModal" tabindex="-1" aria-labelledby="alertModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="alertModalLabel">Notification</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body" id="alertModalBody">
+                        <!-- Alert message will be inserted here -->
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="header">
+            <h1>Vendor Categorization AI Tool</h1>
+            <p class="lead">Upload a CSV file with vendor data to categorize vendors using AI</p>
+        </div>
+
+        <ul class="nav nav-tabs" id="myTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="upload-tab" data-bs-toggle="tab" data-bs-target="#upload" type="button" role="tab" aria-controls="upload" aria-selected="true">Upload</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#history" type="button" role="tab" aria-controls="history" aria-selected="false">History</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="cache-tab" data-bs-toggle="tab" data-bs-target="#cache" type="button" role="tab" aria-controls="cache" aria-selected="false">Vendor Cache</button>
+            </li>
+        </ul>
+        
+        <div class="tab-content" id="myTabContent">
+            <!-- Upload Tab -->
+            <div class="tab-pane fade show active" id="upload" role="tabpanel" aria-labelledby="upload-tab">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>Upload CSV File</h5>
+                            </div>
+                            <div class="card-body">
+                                <form id="upload-form" enctype="multipart/form-data">
+                                    <div class="mb-3">
+                                        <label for="file" class="form-label">CSV File</label>
+                                        <input type="file" class="form-control" id="file" name="file" accept=".csv" required>
+                                        <div class="form-text">File must be a CSV with at least a 'vendor_name' column.</div>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">Upload and Categorize</button>
+                                </form>
+                            </div>
+                        </div>
+                        
+                        <div class="loading mt-3">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2">Processing vendors... This may take a moment.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div id="results-container" class="card">
+                            <div class="card-header">
+                                <h5>Categorization Results</h5>
+                            </div>
+                            <div class="card-body">
+                                <div id="results-summary" class="mb-3"></div>
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Vendor Name</th>
+                                                <th>AI Category</th>
+                                                <th>Source</th>
+                                                <th>Description</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="results-table"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- History Tab -->
+            <div class="tab-pane fade" id="history" role="tabpanel" aria-labelledby="history-tab">
+                <h3>Upload History</h3>
+                <div id="history-table-container" class="table-responsive history-table-container">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>Filename</th>
+                                <th>Upload Date</th>
+                                <th>Vendors</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-table"></tbody>
+                    </table>
+                </div>
+                
+                <div id="history-detail" class="mt-4" style="display: none;">
+                    <h4>Upload Details: <span id="detail-filename"></span></h4>
+                    <p>Upload Date: <span id="detail-date"></span></p>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Vendor Name</th>
+                                    <th>Original Category</th>
+                                    <th>AI Category</th>
+                                </tr>
+                            </thead>
+                            <tbody id="detail-table"></tbody>
+                        </table>
+                    </div>
+                    
+                    <button id="back-to-history" class="btn btn-secondary">Back to History</button>
+                </div>
+            </div>
+            
+            <!-- Cache Tab -->
+            <div class="tab-pane fade" id="cache" role="tabpanel" aria-labelledby="cache-tab">
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>Add New Vendor to Cache</h5>
+                            </div>
+                            <div class="card-body">
+                                <form id="cache-form">
+                                    <div class="mb-3">
+                                        <label for="vendor-name" class="form-label">Vendor Name</label>
+                                        <input type="text" class="form-control" id="vendor-name" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="vendor-category" class="form-label">Category</label>
+                                        <select class="form-select" id="vendor-category" required>
+                                            <option value="" selected disabled>Select a category</option>
+                                            <!-- Categories will be populated dynamically -->
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="vendor-description" class="form-label">Description (Optional)</label>
+                                        <textarea class="form-control" id="vendor-description" rows="2"></textarea>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">Add to Cache</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h3>Vendor Cache</h3>
+                                <div>
+                                    <button id="test-cache" class="btn btn-sm btn-info me-2">Test Cache API</button>
+                                    <button id="refresh-cache" class="btn btn-sm btn-primary">Refresh</button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div id="cache-stats">
+                                    <p>Total cached vendors: <span id="total-cached">0</span></p>
+                                    <p>Last updated: <span id="last-updated">Never</span></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <h3>Cached Vendors</h3>
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Vendor Name</th>
+                                <th>Category</th>
+                                <th>Description</th>
+                                <th>Last Updated</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cache-table"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const uploadForm = document.getElementById('upload-form');
+            const loadingIndicator = document.querySelector('.loading');
+            const resultsContainer = document.getElementById('results-container');
+            const resultsTable = document.getElementById('results-table');
+            const resultsSummary = document.getElementById('results-summary');
+            const historyTab = document.getElementById('history-tab');
+            const historyTable = document.getElementById('history-table');
+            const historyDetail = document.getElementById('history-detail');
+            const detailFilename = document.getElementById('detail-filename');
+            const detailDate = document.getElementById('detail-date');
+            const detailTable = document.getElementById('detail-table');
+            const backToHistoryBtn = document.getElementById('back-to-history');
+            
+            // Load history when history tab is clicked
+            historyTab.addEventListener('click', loadHistory);
+            
+            // Load cache when cache tab is clicked
+            document.getElementById('cache-tab').addEventListener('click', function() {
+                loadCacheData();
+                populateCategories();
+            });
+            
+            // Cache form submission
+            document.getElementById('cache-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                addVendorToCache();
+            });
+            
+            // Refresh cache button
+            document.getElementById('refresh-cache').addEventListener('click', function() {
+                loadCacheData();
+            });
+            
+            // Test cache API button
+            document.getElementById('test-cache').addEventListener('click', function() {
+                console.log('Testing cache API directly...');
+                fetch('/cache')
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log('Direct cache API response:', data);
+                        showAlert('Check browser console for cache API response');
+                    })
+                    .catch(error => {
+                        console.error('Error testing cache API:', error);
+                        showAlert('Error testing cache API: ' + error);
+                    });
+            });
+            
+            // Handle file upload
+            uploadForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const formData = new FormData(uploadForm);
+                
+                // Show loading indicator
+                loadingIndicator.style.display = 'block';
+                resultsContainer.style.display = 'none';
+                
+                // Send the file to the server
+                fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(data => {
+                            throw new Error(data.error || 'Unknown error occurred');
+                        });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Hide loading indicator
+                    loadingIndicator.style.display = 'none';
+                    
+                    // Show results
+                    resultsContainer.style.display = 'block';
+                    
+                    // Display summary
+                    const results = data && data.vendors ? data.vendors : [];
+                    resultsSummary.innerHTML = `<strong>Processed ${results.length} vendors</strong>`;
+                    
+                    // Clear previous results
+                    resultsTable.innerHTML = '';
+                    
+                    // Add new results
+                    results.forEach(result => {
+                        const row = document.createElement('tr');
+                        const source = result.cache_hit ? 'Cache' : 'AI';
+                        const sourceClass = result.cache_hit ? 'text-success' : 'text-primary';
+                        
+                        row.innerHTML = `
+                            <td>${escapeHtml(result.vendor_name)}</td>
+                            <td>${escapeHtml(result.ai_category)}</td>
+                            <td><span class="${sourceClass}">${source}</span></td>
+                            <td>${escapeHtml(result.description || '')}</td>
+                        `;
+                        resultsTable.appendChild(row);
+                    });
+                    
+                    // Reset form
+                    uploadForm.reset();
+                })
+                .catch(error => {
+                    // Hide loading indicator
+                    loadingIndicator.style.display = 'none';
+                    
+                    // Show error
+                    showAlert('Error: ' + error.message);
+                });
+            });
+            
+            // Load history data
+            function loadHistory() {
+                fetch('/history')
+                .then(response => response.json())
+                .then(data => {
+                    // Clear previous history
+                    historyTable.innerHTML = '';
+                    
+                    // Hide detail view
+                    historyDetail.style.display = 'none';
+                    
+                    // Add history items
+                    data.forEach(item => {
+                        const row = document.createElement('tr');
+                        const date = new Date(item.upload_timestamp).toLocaleString();
+                        
+                        row.innerHTML = `
+                            <td>${item.id}</td>
+                            <td>${escapeHtml(item.filename)}</td>
+                            <td>${date}</td>
+                            <td>${item.vendor_count}</td>
+                            <td>
+                                <button class="btn btn-sm btn-info view-detail" data-id="${item.id}">View Details</button>
+                            </td>
+                        `;
+                        historyTable.appendChild(row);
+                    });
+                    
+                    // Add event listeners to view detail buttons
+                    document.querySelectorAll('.view-detail').forEach(button => {
+                        button.addEventListener('click', function() {
+                            const uploadId = this.getAttribute('data-id');
+                            loadHistoryDetail(uploadId);
+                        });
+                    });
+                })
+                .catch(error => {
+                    console.error('Error loading history:', error);
+                    showAlert('Error loading history data');
+                });
+            }
+            
+            // Load history detail
+            function loadHistoryDetail(uploadId) {
+                console.log(`Loading history detail for upload ID: ${uploadId}`);
+                
+                fetch(`/history/${uploadId}`)
+                .then(response => {
+                    console.log('History detail response status:', response.status);
+                    if (!response.ok) {
+                        throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('History detail data received:', data);
+                    
+                    if (!data.upload) {
+                        throw new Error('No upload data in response');
+                    }
+                    
+                    if (!data.vendors) {
+                        throw new Error('No vendors data in response');
+                    }
+                    
+                    // Set detail info
+                    detailFilename.textContent = data.upload.filename || 'Unknown';
+                    detailDate.textContent = data.upload.upload_timestamp ? 
+                        new Date(data.upload.upload_timestamp).toLocaleString() : 'Unknown';
+                    
+                    // Clear previous details
+                    detailTable.innerHTML = '';
+                    
+                    // Add detail rows
+                    if (data.vendors.length === 0) {
+                        const row = document.createElement('tr');
+                        row.innerHTML = '<td colspan="3">No vendor data available</td>';
+                        detailTable.appendChild(row);
+                    } else {
+                        data.vendors.forEach(vendor => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td>${escapeHtml(vendor.vendor_name || 'Unknown')}</td>
+                                <td>${escapeHtml(vendor.original_category || '')}</td>
+                                <td>${escapeHtml(vendor.ai_category || '')}</td>
+                            `;
+                            detailTable.appendChild(row);
+                        });
+                    }
+                    
+                    // Show detail view, hide history table
+                    const historyTableContainer = document.getElementById('history-table-container');
+                    if (historyTableContainer) {
+                        historyTableContainer.style.display = 'none';
+                    } else {
+                        console.error('Could not find history table container');
+                    }
+                    
+                    historyDetail.style.display = 'block';
+                })
+                .catch(error => {
+                    console.error('Error loading history detail:', error);
+                    showAlert(`Error loading history detail data: ${error.message}`);
+                });
+            }
+            
+            // Back to history button
+            backToHistoryBtn.addEventListener('click', function() {
+                document.getElementById('history-table-container').style.display = 'block';
+                historyDetail.style.display = 'none';
+            });
+            
+            // Helper function to escape HTML
+            function escapeHtml(unsafe) {
+                if (!unsafe) return '';
+                return unsafe
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#039;");
+            }
+            
+            // Custom alert function using Bootstrap modal
+            function showAlert(message) {
+                const alertModalBody = document.getElementById('alertModalBody');
+                alertModalBody.textContent = message;
+                const alertModal = new bootstrap.Modal(document.getElementById('alertModal'));
+                alertModal.show();
+            }
+            
+            // Function to load cache data
+            function loadCacheData() {
+                console.log('Loading cache data...');
+                fetch('/cache')
+                    .then(response => {
+                        console.log('Cache response status:', response.status);
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! Status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log('Cache data received:', data);
+                        const cacheTable = document.getElementById('cache-table');
+                        cacheTable.innerHTML = '';
+                        
+                        // Ensure data is an array
+                        console.log('Raw cache data:', data);
+                        console.log('Data type:', typeof data);
+                        console.log('Is array:', Array.isArray(data));
+                        
+                        const cacheData = Array.isArray(data) ? data : [];
+                        console.log('Processed cache data:', cacheData);
+                        
+                        document.getElementById('total-cached').textContent = cacheData.length;
+                        console.log('Cache length:', cacheData.length);
+                        
+                        if (cacheData.length > 0) {
+                            console.log('First cache item:', cacheData[0]);
+                            console.log('Last updated value:', cacheData[0].last_updated);
+                            const lastUpdated = new Date(cacheData[0].last_updated);
+                            document.getElementById('last-updated').textContent = lastUpdated.toLocaleString();
+                        } else {
+                            console.log('No cache items found');
+                            document.getElementById('last-updated').textContent = 'N/A';
+                        }
+                        
+                        try {
+                            console.log('Starting to populate cache table with', cacheData.length, 'items');
+                            cacheData.forEach((vendor, index) => {
+                                console.log(`Processing vendor ${index}:`, vendor);
+                                const row = document.createElement('tr');
+                                
+                                // Safely handle vendor properties
+                                const id = vendor.id || 'N/A';
+                                const vendorName = vendor.vendor_name || 'Unknown';
+                                const category = vendor.category || 'Uncategorized';
+                                const description = vendor.description || '';
+                                const lastUpdatedRaw = vendor.last_updated || null;
+                                
+                                console.log(`Vendor ${index} properties:`, { id, vendorName, category, description, lastUpdatedRaw });
+                                
+                                const lastUpdated = lastUpdatedRaw ? new Date(lastUpdatedRaw).toLocaleString() : 'N/A';
+                                
+                                row.innerHTML = `
+                                    <td>${id}</td>
+                                    <td>${escapeHtml(vendorName)}</td>
+                                    <td>${escapeHtml(category)}</td>
+                                    <td>${escapeHtml(description)}</td>
+                                    <td>${lastUpdated}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-danger delete-cache" data-id="${id}">Delete</button>
+                                    </td>
+                                `;
+                                console.log(`Adding row for vendor ${index} to table`);
+                                cacheTable.appendChild(row);
+                            });
+                            console.log('Finished populating cache table');
+                        } catch (error) {
+                            console.error('Error populating cache table:', error);
+                            showAlert(`Error populating cache table: ${error.message}`);
+                        }
+                        
+                        // Add event listeners for delete buttons
+                        document.querySelectorAll('.delete-cache').forEach(button => {
+                            button.addEventListener('click', function() {
+                                const cacheId = this.getAttribute('data-id');
+                                deleteVendorFromCache(cacheId);
+                            });
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error loading cache data:', error);
+                        document.getElementById('total-cached').textContent = '0';
+                        document.getElementById('last-updated').textContent = 'Error';
+                        document.getElementById('cache-table').innerHTML = '';
+                        showAlert(`Error loading cache data: ${error.message}`);
+                    });
+            }
+            
+            // Function to populate categories dropdown
+            function populateCategories() {
+                const categorySelect = document.getElementById('vendor-category');
+                // Clear existing options except the first one
+                while (categorySelect.options.length > 1) {
+                    categorySelect.remove(1);
+                }
+                
+                // Get categories from the server
+                fetch('/categories')
+                    .then(response => response.json())
+                    .then(categories => {
+                        if (categories) {
+                            categories.forEach(category => {
+                                const option = document.createElement('option');
+                                option.value = category;
+                                option.textContent = category;
+                                categorySelect.appendChild(option);
+                            });
+                        }
+                    })
+                    .catch(error => console.error('Error loading categories:', error));
+            }
+            
+            // Function to add vendor to cache
+            function addVendorToCache() {
+                const vendorName = document.getElementById('vendor-name').value;
+                const category = document.getElementById('vendor-category').value;
+                const description = document.getElementById('vendor-description').value;
+                
+                if (!vendorName || !category) {
+                    showAlert('Vendor name and category are required');
+                    return;
+                }
+                
+                fetch('/cache', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        vendor_name: vendorName,
+                        category: category,
+                        description: description
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Clear form
+                        document.getElementById('vendor-name').value = '';
+                        document.getElementById('vendor-category').value = '';
+                        document.getElementById('vendor-description').value = '';
+                        
+                        // Reload cache data
+                        loadCacheData();
+                        showAlert('Vendor added to cache successfully');
+                    } else {
+                        showAlert('Error adding vendor to cache: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error adding vendor to cache:', error);
+                    showAlert('Error adding vendor to cache');
+                });
+            }
+            
+            // Function to delete vendor from cache
+            function deleteVendorFromCache(cacheId) {
+                if (confirm('Are you sure you want to delete this vendor from the cache?')) {
+                    fetch(`/cache/${cacheId}`, {
+                        method: 'DELETE'
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            loadCacheData();
+                            showAlert('Vendor removed from cache successfully');
+                        } else {
+                            showAlert('Error removing vendor from cache: ' + data.error);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error deleting vendor from cache:', error);
+                        showAlert('Error deleting vendor from cache');
+                    });
+                }
+            }
+        });
+    </script>
+</body>
+</html>
