@@ -22,13 +22,13 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          if [ -f vendor_categorization/requirements.txt ]; then
+          if [ -f requirements.txt ]; then
             pip install -r vendor_categorization/requirements.txt
           fi
 
       - name: Setup environment variables
         run: |
-          cp vendor_categorization/.env.example vendor_categorization/.env
+          cp .env.example .env
           # Note: In a real workflow, you would set the API keys from GitHub secrets
 
       - name: Run tests
